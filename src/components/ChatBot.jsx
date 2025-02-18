@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { FaArrowUp } from "react-icons/fa6";
+import axios from "axios";
 import "../styles/chatBot.css";
 
 const ChatBot = () => {
@@ -10,11 +12,19 @@ const ChatBot = () => {
   const [showMenu, setShowMenu] = useState(false);
   const [error, setError] = useState("");
 
+  const API_BASE = "https://w4gw8kvg-5000.inc1.devtunnels.ms";
+
+  const chatEndRef = useRef(null); // Ref to track the latest message
+
   useEffect(() => {
     if (!currentChat && chats.length === 0) {
       startNewChatWithDefaultName();
     }
   }, [currentChat, chats]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]); // Scrolls to the latest message when messages update
 
   const startNewChatWithDefaultName = () => {
     const defaultChatName = `Chat ${chats.length + 1}`;
@@ -40,88 +50,101 @@ const ChatBot = () => {
     }
   };
 
-  // const startNewChat = () => {
-  //   if (chatName.trim() === "") {
-  //     setError("Chat name cannot be empty.");
-  //     return;
-  //   }
+  const sendMessage = async () => {
+    if (inputText.trim() === "") return;
 
-  //   const newChat = { id: Date.now(), title: chatName, messages: [] };
-  //   setChats([...chats, newChat]);
-  //   setCurrentChat(newChat);
-  //   setMessages([]);
-  //   setChatName("");
-  //   setError("");
-  // };
+    const userMessage = inputText;
 
-  const selectChat = (chat) => {
-    setCurrentChat(chat);
-    setMessages(chat.messages);
-    setError("");
-  };
+    setInputText("");
 
-  const sendMessage = () => {
-    if (inputText.trim()) {
-      const newMessages = [...messages, { text: inputText, type: "user" }];
-      setMessages(newMessages);
-      setInputText("");
+    try {
+      let chat = currentChat;
 
-      setTimeout(() => {
-        const botReply = { text: "Bot Reply", type: "bot" };
-        setMessages([...newMessages, botReply]);
-
-        // Update chat history
-        const updatedChats = chats.map((chat) =>
-          chat.id === currentChat.id ? { ...chat, messages: [...newMessages, botReply] } : chat
+      if (!chat) {
+        const defaultChatName = `Chat ${chats.length + 1}`;
+        const response = await axios.post(
+          `${API_BASE}/chat_create`,
+          { chat_name: defaultChatName },
+          { headers: { "Content-Type": "application/json" } }
         );
-        setChats(updatedChats);
-      }, 1000);
+
+        chat = { id: response.data.response, title: defaultChatName, messages: [] };
+        setChats([...chats, chat]);
+        setCurrentChat(chat);
+      }
+
+      const updatedMessages = [...(chat.messages || []), { text: userMessage, type: "user" }];
+      setMessages(updatedMessages);
+
+      const chatResponse = await axios.post(
+        `${API_BASE}/chat`,
+        { chat_name: chat.title, message: userMessage },
+        { headers: { "Content-Type": "application/json" } }
+      );
+
+      const botReply = { text: chatResponse.data.response, type: "bot" };
+      const finalMessages = [...updatedMessages, botReply];
+
+      setMessages(finalMessages);
+      setChats(chats.map((c) => (c.id === chat.id ? { ...c, messages: finalMessages } : c)));
+      setCurrentChat({ ...chat, messages: finalMessages });
+
+    } catch (err) {
+      console.error("Error in sending message:", err.response ? err.response.data : err.message);
+      setError(err.response?.data?.message || "Failed to send message.");
     }
   };
 
-  // const handleChatNameChange = (newName) => {
-  //   if (currentChat) {
-  //     const updatedChat = { ...currentChat, title: newName };
-  //     const updatedChats = chats.map((chat) =>
-  //       chat.id === currentChat.id ? updatedChat : chat
-  //     );
-  //     setChats(updatedChats);
-  //     setCurrentChat(updatedChat);
-  //   }
-  // };
+  const selectChat = (chat) => {
+    setCurrentChat(chat);
+    setMessages(chat.messages || []);
+    setError("");
+  };
 
-  const startNewChat = () => {
+  const startNewChat = async () => {
     if (chatName.trim() === "") {
       setError("Chat name cannot be empty.");
       return;
     }
-  
-    // Check if the chat name already exists
+
     if (chats.some((chat) => chat.title === chatName)) {
       setError("Chat name already exists.");
       return;
     }
-  
-    const newChat = { id: Date.now(), title: chatName, messages: [] };
-    setChats([...chats, newChat]);
-    setCurrentChat(newChat);
-    setMessages([]);
-    setChatName("");
-    setError("");
+
+    try {
+      const response = await axios.post(
+        `${API_BASE}/chat_create`,
+        { chat_name: chatName },
+        { headers: { "Content-Type": "application/json" } }
+      );
+
+      console.log("Chat Created:", response.data);
+
+      const newChat = { id: response.data.response, title: chatName, messages: [] };
+      setChats([...chats, newChat]);
+      setCurrentChat(newChat);
+      setMessages([]);
+      setChatName("");
+      setError("");
+    } catch (err) {
+      console.error("Error creating chat:", err.response ? err.response.data : err.message);
+      setError(err.response?.data?.message || "Failed to create chat.");
+    }
   };
-  
+
   const handleChatNameChange = (newName) => {
+    setError("");
     if (newName.trim() === "") {
       setError("Chat name cannot be empty.");
       return;
     }
-  
-    // Check if the new name already exists (excluding the current chat)
+
     if (chats.some((chat) => chat.title === newName && chat.id !== currentChat.id)) {
       setError("Chat name already exists.");
       return;
     }
-  
+
     if (currentChat) {
       const updatedChat = { ...currentChat, title: newName };
       const updatedChats = chats.map((chat) =>
@@ -132,12 +155,10 @@ const ChatBot = () => {
       setError("");
     }
   };
-  
 
   return (
     <div className="chat-bot">
       <div className="chat-container">
-        {/* Sidebar for Previous Chats */}
         <div className={`side-menu ${showMenu ? "open" : ""}`}>
           <button className="close-menu" onClick={() => setShowMenu(false)}>✖</button>
 
@@ -162,11 +183,9 @@ const ChatBot = () => {
           </div>
         </div>
 
-        {/* Chat Area */}
         <div className="chat-main">
           <button className="menu-button" onClick={() => setShowMenu(true)}>☰</button>
 
-          {/* Chat Messages (Scrollable) */}
           <div className="chat-window">
             <div className="chat-messages">
               {messages.map((msg, index) => (
@@ -174,20 +193,21 @@ const ChatBot = () => {
                   {msg.text}
                 </div>
               ))}
+              {/* Auto-scroll target */}
+              <div ref={chatEndRef} />
             </div>
           </div>
-          {/* Edit Chat Name */}
-            {currentChat && (
-              <div className="edit-chat-name">
-                <input
-                  type="text"
-                  value={currentChat.title}
-                  onChange={(e) => handleChatNameChange(e.target.value)}
-                />
-              </div>
-            )}
 
-          {/* Input Field with Send Button */}
+          {currentChat && (
+            <div className="edit-chat-name">
+              <input
+                type="text"
+                value={currentChat.title}
+                onChange={(e) => handleChatNameChange(e.target.value)}
+              />
+            </div>
+          )}
+
           <div className="chat-input">
             <input
               type="text"
@@ -196,7 +216,7 @@ const ChatBot = () => {
               onChange={(e) => setInputText(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && sendMessage()}
             />
-            <button onClick={sendMessage}>➜</button>
+            <button onClick={sendMessage}><FaArrowUp /></button>
           </div>
         </div>
       </div>
