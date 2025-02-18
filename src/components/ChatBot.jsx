@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { FaArrowUp } from "react-icons/fa6";
+import { VscRobot } from "react-icons/vsc";
+import { PiFinnTheHumanBold } from "react-icons/pi";
 import axios from "axios";
 import "../styles/chatBot.css";
 
@@ -18,9 +20,26 @@ const ChatBot = () => {
 
   useEffect(() => {
     if (!currentChat && chats.length === 0) {
+      fetchChatNames();
       startNewChatWithDefaultName();
     }
   }, [currentChat, chats]);
+
+  // Fetch chat names from the API
+  const fetchChatNames = async () => {
+    try {
+      const response = await axios.get(`${API_BASE}/chat_history`);
+      const chatList = response.data.chat_names; // Accessing the chat names array
+      setChats(chatList.map((chatTitle) => ({
+        id: Date.now() + Math.random(), // Unique id for each chat, can be improved
+        title: chatTitle,
+        messages: [] // Initially empty messages array
+      })));
+    } catch (err) {
+      console.error("Error fetching chat names:", err.message);
+      setError("Failed to fetch chat names.");
+    }
+  };
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -34,27 +53,69 @@ const ChatBot = () => {
     setMessages([]);
   };
 
-  const fetchChat = () => {
+  const fetchChat = async () => {
     if (chatName.trim() === "") {
       setError("Please enter a chat name.");
       return;
     }
-
+  
     const foundChat = chats.find((chat) => chat.title === chatName);
     if (foundChat) {
+      // If chat is already in the list, use its existing messages
       setCurrentChat(foundChat);
       setMessages(foundChat.messages);
       setError("");
     } else {
-      setError("Chat does not exist.");
+      // If chat doesn't exist, fetch the chat messages from the backend
+      try {
+        const response = await axios.post(`${API_BASE}/chat_resume`, {
+          chat_name: chatName
+        });
+  
+        // Assuming the response contains the messages
+        const fetchedMessages = [];
+  
+        // Combine human and AI messages alternately
+        for (let i = 0; i < response.data.response.length; i++) {
+          const userMessage = response.data.response[i].human;
+          const botMessage = response.data.response[i].AI;
+  
+          if (userMessage) {
+            fetchedMessages.push({
+              text: userMessage,
+              type: "user",
+              timestamp: response.data.response[i].timestamp
+            });
+          }
+          
+          if (botMessage) {
+            fetchedMessages.push({
+              text: botMessage,
+              type: "bot",
+              timestamp: response.data.response[i].timestamp
+            });
+          }
+        }
+  
+        // Add the fetched chat to the chat history
+        const newChat = { id: Date.now(), title: chatName, messages: fetchedMessages };
+        setChats([...chats, newChat]);
+        setCurrentChat(newChat);
+        setMessages(fetchedMessages);
+        setError("");
+  
+      } catch (err) {
+        console.error("Error fetching chat messages:", err.message);
+        setError("Failed to fetch chat messages.");
+      }
     }
   };
+  
 
   const sendMessage = async () => {
     if (inputText.trim() === "") return;
 
     const userMessage = inputText;
-
     setInputText("");
 
     try {
@@ -95,12 +156,71 @@ const ChatBot = () => {
     }
   };
 
-  const selectChat = (chat) => {
-    setCurrentChat(chat);
-    setMessages(chat.messages || []);
-    setError("");
-  };
+  // Handle chat selection from the chat history
+  // const selectChat = (chat) => {
+  //   setCurrentChat(chat);
+  //   setMessages(chat.messages || []);  // Set the messages of the selected chat
+  //   setChatName(chat.title);  // Update chat name input when selecting a chat
+  //   setError("");  // Reset error
+  // };
 
+  const selectChat = async (chat) => {
+    setCurrentChat(chat);
+    setChatName(chat.title);  // Update chat name input when selecting a chat
+    setError("");  // Reset error
+  
+    // If messages for the selected chat are already present, set them
+    if (chat.messages.length > 0) {
+      setMessages(chat.messages);
+    } else {
+      // Fetch messages for the selected chat from the backend
+      try {
+        const response = await axios.post(`${API_BASE}/chat_resume`, {
+          chat_name: chat.title
+        });
+  
+        // Assuming the response contains the messages
+        const fetchedMessages = [];
+  
+        // Combine human and AI messages alternately
+        for (let i = 0; i < response.data.response.length; i++) {
+          const userMessage = response.data.response[i].human;
+          const botMessage = response.data.response[i].AI;
+  
+          if (userMessage) {
+            fetchedMessages.push({
+              text: userMessage,
+              type: "user",
+              timestamp: response.data.response[i].timestamp
+            });
+          }
+          
+          if (botMessage) {
+            fetchedMessages.push({
+              text: botMessage,
+              type: "bot",
+              timestamp: response.data.response[i].timestamp
+            });
+          }
+        }
+  
+        setMessages(fetchedMessages);
+  
+        // Update the current chat with the fetched messages
+        const updatedChat = { ...chat, messages: fetchedMessages };
+        setChats((prevChats) =>
+          prevChats.map((prevChat) =>
+            prevChat.id === chat.id ? updatedChat : prevChat
+          )
+        );
+      } catch (err) {
+        console.error("Error fetching chat messages:", err.message);
+        setError("Failed to fetch chat messages.");
+      }
+    }
+  };  
+  
+  
   const startNewChat = async () => {
     if (chatName.trim() === "") {
       setError("Chat name cannot be empty.");
@@ -187,15 +307,18 @@ const ChatBot = () => {
           <button className="menu-button" onClick={() => setShowMenu(true)}>☰</button>
 
           <div className="chat-window">
-            <div className="chat-messages">
-              {messages.map((msg, index) => (
-                <div key={index} className={`chat-bubble ${msg.type}`}>
-                  {msg.text}
-                </div>
-              ))}
-              {/* Auto-scroll target */}
-              <div ref={chatEndRef} />
-            </div>
+          <div className="chat-messages">
+            {messages.map((msg, index) => (
+              <div key={index} className={`chat-bubble ${msg.type}`}>
+                {msg.type === "bot" && <VscRobot />} {/* Bot Icon */}
+                {msg.type === "user" && <PiFinnTheHumanBold />} {/* User Icon */}
+                <span>{msg.text}</span>
+                {/* {msg.text} */}
+              </div>
+            ))}
+            {/* Auto-scroll target */}
+            <div ref={chatEndRef} />
+          </div>
           </div>
 
           {currentChat && (
