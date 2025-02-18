@@ -59,57 +59,45 @@ const ChatBot = () => {
       return;
     }
   
-    const foundChat = chats.find((chat) => chat.title === chatName);
-    if (foundChat) {
-      // If chat is already in the list, use its existing messages
-      setCurrentChat(foundChat);
-      setMessages(foundChat.messages);
-      setError("");
-    } else {
-      // If chat doesn't exist, fetch the chat messages from the backend
-      try {
-        const response = await axios.post(`${API_BASE}/chat_resume`, {
-          chat_name: chatName
-        });
+    try {
+      const response = await axios.post(`${API_BASE}/chat_resume`, {
+        chat_name: chatName,
+      });
   
-        // Assuming the response contains the messages
-        const fetchedMessages = [];
-  
-        // Combine human and AI messages alternately
-        for (let i = 0; i < response.data.response.length; i++) {
-          const userMessage = response.data.response[i].human;
-          const botMessage = response.data.response[i].AI;
-  
-          if (userMessage) {
-            fetchedMessages.push({
-              text: userMessage,
-              type: "user",
-              timestamp: response.data.response[i].timestamp
-            });
-          }
-          
-          if (botMessage) {
-            fetchedMessages.push({
-              text: botMessage,
-              type: "bot",
-              timestamp: response.data.response[i].timestamp
-            });
-          }
-        }
-  
-        // Add the fetched chat to the chat history
-        const newChat = { id: Date.now(), title: chatName, messages: fetchedMessages };
-        setChats([...chats, newChat]);
-        setCurrentChat(newChat);
-        setMessages(fetchedMessages);
-        setError("");
-  
-      } catch (err) {
-        console.error("Error fetching chat messages:", err.message);
-        setError("Failed to fetch chat messages.");
+      if (!response.data.response || response.data.response.length === 0) {
+        setError("No messages found for this chat.");
+        return;
       }
+  
+      // Prepare fetched messages
+      const fetchedMessages = response.data.response.flatMap(({ human, AI, timestamp }) => [
+        human ? { text: human, type: "user", timestamp } : null,
+        AI ? { text: AI, type: "bot", timestamp } : null,
+      ]).filter(Boolean); // Remove null values
+  
+      setChats((prevChats) => {
+        // Check if the chat already exists
+        let existingChat = prevChats.find((chat) => chat.title === chatName);
+        if (existingChat) {
+          existingChat.messages = fetchedMessages;
+          return [...prevChats];
+        } else {
+          const newChat = { id: Date.now(), title: chatName, messages: fetchedMessages };
+          return [...prevChats, newChat];
+        }
+      });
+  
+      // Update current chat and messages
+      setCurrentChat({ id: Date.now(), title: chatName, messages: fetchedMessages });
+      setMessages(fetchedMessages);
+      setError("");
+    } catch (err) {
+      console.error("Error fetching chat messages:", err.message);
+      setError("Failed to fetch chat messages.");
     }
   };
+  
+  
   
 
   const sendMessage = async () => {
