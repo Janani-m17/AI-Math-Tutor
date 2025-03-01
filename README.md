@@ -1,4 +1,4 @@
-# AI Math Tutor
+# AI Math Tutor 🔢🤖
 
 ## Overview
 The current OLabs platform lacks AI-driven mathematical problem-solving, making it difficult for students to get instant solutions. There is no real-time equation recognition or automated system to solve handwritten math problems. Additionally, students cannot extract transcripts from educational videos and procedures to receive AI-generated answers, making it harder to understand complex equations step by step.
@@ -125,18 +125,9 @@ frontend/
    ```sh
    python app.py
    ```
+## Prototype
 
-## Contributing
-We welcome contributions! To contribute:
-1. Fork the repository.
-2. Create a new branch (`git checkout -b feature-branch`).
-3. Commit your changes (`git commit -m 'Add new feature'`).
-4. Push to the branch (`git push origin feature-branch`).
-5. Open a Pull Request.
 
-## License
-This project is open-source and available under the [MIT License](LICENSE).
+https://github.com/user-attachments/assets/e32f8924-2c44-491d-93ed-a904b061bc1c
 
----
-For any questions, feel free to reach out!
 
