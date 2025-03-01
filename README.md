@@ -127,7 +127,5 @@ frontend/
    ```
 ## Prototype
 
-
-https://github.com/user-attachments/assets/e32f8924-2c44-491d-93ed-a904b061bc1c
-
+https://github.com/user-attachments/assets/818f23ff-fbe3-4b5f-9101-e68b1992cfbe
 
