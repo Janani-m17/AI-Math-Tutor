@@ -92,10 +92,6 @@ canvas_backend/
   - audio.mp3
   - backend.py
   - faiss_index.index
-
-frontend/
-  - .gitignore
-  - try.py
 ```
 
 ## Installation
