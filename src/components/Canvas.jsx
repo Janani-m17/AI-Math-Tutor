@@ -18,6 +18,7 @@ const canvasRef = useRef(null);
   const [startPos, setStartPos] = useState(null);
   const [isErasing, setIsErasing] = useState(false);
   const [activeTool, setActiveTool] = useState("free");
+  const [responseText, setResponseText] = useState("");
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -143,7 +144,7 @@ const canvasRef = useRef(null);
       console.log("Sending image data to backend...");
   
       const response = await axios.post(
-        "https://w4gw8kvg-8000.inc1.devtunnels.ms/calculate",
+        "https://w4gw8kvg-8900.inc1.devtunnels.ms/calculate",
         { image: imageData, dict_of_vars: {} },
         { headers: { "Content-Type": "application/json" } }
       );

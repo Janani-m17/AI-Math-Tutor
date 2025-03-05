@@ -96,9 +96,6 @@ const ChatBot = () => {
       setError("Failed to fetch chat messages.");
     }
   };
-  
-  
-  
 
   const sendMessage = async () => {
     if (inputText.trim() === "") return;

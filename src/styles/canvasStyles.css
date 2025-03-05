@@ -39,6 +39,8 @@
     font-size: 14px;
     border: 1px solid #000;
     /* background-color: #f4f4f4; */
+    background-color: black;
+    color: white;
     cursor: pointer;
     transition: background-color 0.3s;
     margin-left: 10px;
@@ -49,7 +51,7 @@
   button.active {
     /* background-color: #007bff; */
     border-color: white;
-    color: white;
+    color: blue;
     margin-left: 10px;
     margin-right: 4px;
   }
